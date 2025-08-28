@@ -2,6 +2,27 @@ import csv
 import numpy as np
 from typing import List, Dict
 
+import socket, struct, time
+import json
+
+
+
+def quat_mul(q1, q2):
+    w1, x1, y1, z1 = q1
+    w2, x2, y2, z2 = q2
+    return np.array([
+        w1*w2 - x1*x2 - y1*y2 - z1*z2,
+        w1*x2 + x1*w2 + y1*z2 - z1*y2,
+        w1*y2 - x1*z2 + y1*w2 + z1*x2,
+        w1*z2 + x1*y2 - y1*x2 + z1*w2
+    ], dtype=float)
+
+def quat_inverse(q):
+    w, x, y, z = q
+    norm2 = np.dot(q,q)
+    return np.array([w, -x, -y, -z], dtype=float) / norm2
+
+
 def parse_quat_accel_csv(file_path: str):
     """
     output_quat_accel.csv 형식 파싱
@@ -35,12 +56,43 @@ def parse_quat_accel_csv(file_path: str):
 
     return frames
 
-# ===================== 사용 예시 =====================
+
 if __name__ == "__main__":
+    TARGET_IP = "127.0.0.1"
+    TARGET_PORT = 5005
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
     file_path = "output_quat_accel.csv"  # 저장된 csv 경로
     frames = parse_quat_accel_csv(file_path)
-    for f in frames:
-        print(f.keys())
+
+    bone_seq = ["Hips", "Spine3", "Head", "LeftArm", "LeftForeArm", "LeftHand", "RightArm", "RightForeArm", "RightHand", "LeftUpLeg", "LeftLeg", "LeftFoot", "RightUpLeg", "RightLeg", "RightFoot"]
+
+    first_q = []
+    for idx, f in enumerate(frames):
+        time.sleep(0.016)
+        send_data = []
+        # print(f["RightHand"]["quat"][0] == "NaN")
+        for i, bone in enumerate(bone_seq):
+            q = f[bone]["quat"]
+            if bone in ["LeftHand", "RightHand"]:
+                q = np.array([1.0, 0.0, 0.0, 0.0])
+
+            if idx == 0:
+                first_q.append(quat_inverse(q))
+
+            frame_bone_data = {
+                "time": "1",
+                "name": "test",
+                "position": [0.0, 0.0, 0.0],
+                "rotation": quat_mul(q, first_q[i]).tolist(),
+                # "rotation": [bone[1].w, -bone[1].x, -bone[1].z, bone[1].y],
+                "acc": [0.0, 0.0, 0.0]
+            }
+            send_data.append(frame_bone_data)
+        print(send_data)
+        data = json.dumps(send_data).encode("utf-8")
+        sock.sendto(data, (TARGET_IP, TARGET_PORT))
 
     print("총 프레임 수:", len(frames))
     print("첫 번째 프레임의 Hips 데이터:")
