@@ -74,7 +74,8 @@ if __name__ == "__main__":
         send_data = []
         # print(f["RightHand"]["quat"][0] == "NaN")
         for i, bone in enumerate(bone_seq):
-            q = f[bone]["quat"]
+            q = f[bone]["quat"].tolist()
+            q = np.array([q[0], q[1], q[2], q[3]])
             if bone in ["LeftHand", "RightHand"]:
                 q = np.array([1.0, 0.0, 0.0, 0.0])
 

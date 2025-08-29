@@ -63,6 +63,7 @@ TARGET_PORT = 5005
 while True:
 
     first_q = []
+    f_root_postion = []
     for (idx, pose_row), (_, ori_row) in zip(pose.iterrows(), ori.iterrows()):
         time.sleep(0.016)
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -87,16 +88,20 @@ while True:
 
         sned_data = []
         for i, bone in enumerate(bone_seq):
+            frame_pose = []
             q = np.array([bone[1].w, -bone[1].x, bone[1].y, -bone[1].z])
             if idx == 0:
                 first_q.append(quat_inverse(q))
+                if i == 0:
+                    f_root_postion = [-bone[0].x / 3.0, bone[0].y / 3.0, -bone[0].z / 3.0]
 
+            frame_pose = [(-bone[0].x / 3.0) - f_root_postion[0], (bone[0].y / 3.0) - f_root_postion[1] + 11.0, (-bone[0].z / 3.0) - f_root_postion[2]]
 
             frame_bone_data = {
                 "time": "1",
                 "name": "test",
                 # "position": [0.0, 0.0, 0.0],
-                "position": [-bone[0].x / 30.0, bone[0].y / 30.0, -bone[0].z / 30.0],
+                "position": frame_pose,
                 "rotation": quat_mul(q, first_q[i]).tolist(),
                 # "rotation": [bone[1].w, -bone[1].x, -bone[1].z, bone[1].y],
                 "acc": [0.0, 0.0, 0.0]
